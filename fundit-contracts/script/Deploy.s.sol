@@ -167,3 +167,49 @@ contract DeployWithMocks is Script {
     }
 }
 
+/**
+ * @title VerifyDeployment
+ * @notice Script to verify an existing deployment
+ * 
+ * Usage:
+ * forge script script/Deploy.s.sol:VerifyDeployment --rpc-url base
+ */
+contract VerifyDeployment is Script {
+    
+    function run() external view {
+        address spendAndSaveAddress = vm.envAddress("SPEND_AND_SAVE_ADDRESS");
+        address automationService = vm.envAddress("AUTOMATION_SERVICE_ADDRESS");
+        
+        console.log("=== Verifying Deployment ===");
+        console.log("SpendAndSaveModule address:", spendAndSaveAddress);
+        
+        SpendAndSaveModule spendAndSave = SpendAndSaveModule(spendAndSaveAddress);
+        
+        // Check USDC address
+        address usdcAddress = address(spendAndSave.USDC());
+        console.log("\nUSDC address:", usdcAddress);
+        
+        // Check owner
+        address owner = spendAndSave.owner();
+        console.log("Contract owner:", owner);
+        
+        // Check automation role
+        bool hasRole = spendAndSave.hasRole(spendAndSave.AUTOMATION_ROLE(), automationService);
+        console.log("Automation service has role:", hasRole);
+        console.log("Automation service address:", automationService);
+        
+        // Check if paused
+        bool paused = spendAndSave.paused();
+        console.log("Contract paused:", paused);
+        
+        console.log("\n=== Verification Complete ===");
+        
+        if (!hasRole) {
+            console.log("\nWARNING: Automation service does not have automation role!");
+        }
+        if (paused) {
+            console.log("\nWARNING: Contract is paused!");
+        }
+    }
+}
+
