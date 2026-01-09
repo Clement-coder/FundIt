@@ -238,5 +238,39 @@ contract SpendAndSaveModuleTest is Test {
         assertEq(config.value, 0);
     }
 
-   
+    // ============ Vault Management Tests ============
+
+    function test_LinkVault_Success() public {
+        vm.prank(user1);
+        spendAndSave.linkVault(address(vault));
+        
+        assertEq(spendAndSave.getUserVault(user1), address(vault));
+    }
+
+    function test_LinkVault_RevertWithWrongOwner() public {
+        MockSavingsVault wrongVault = new MockSavingsVault(user2);
+        
+        vm.prank(user1);
+        vm.expectRevert(SpendAndSaveModule.InvalidVaultOwner.selector);
+        spendAndSave.linkVault(address(wrongVault));
+    }
+
+    function test_LinkVault_RevertWithZeroAddress() public {
+        vm.prank(user1);
+        vm.expectRevert(SpendAndSaveModule.ZeroAddress.selector);
+        spendAndSave.linkVault(address(0));
+    }
+
+    function test_UnlinkVault_Success() public {
+        vm.startPrank(user1);
+        
+        spendAndSave.linkVault(address(vault));
+        spendAndSave.unlinkVault();
+        
+        assertEq(spendAndSave.getUserVault(user1), address(0));
+        
+        vm.stopPrank();
+    }
+
+    
 }
