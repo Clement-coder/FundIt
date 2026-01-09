@@ -145,5 +145,56 @@ contract SpendAndSaveModule is
         emit VaultUnlinked(msg.sender, oldVault, block.timestamp);
     }
 
+    /**
+     * @notice Enable Spend & Save with comprehensive validation
+     * @param value Percentage (1-50) or fixed USDC amount (in USDC decimals)
+     * @param isPercentage True for percentage-based, false for fixed amount
+     * @param minSpendThreshold Minimum spend to trigger auto-save (in USDC decimals)
+     * @param dailyCap Maximum USDC to auto-save per day (in USDC decimals)
+     * @param monthlyCap Maximum USDC to auto-save per month (in USDC decimals)
+     * @param destinationId 0 for flexible savings, >0 for specific position
+     */
+    function enableSpendAndSave(
+        uint256 value,
+        bool isPercentage,
+        uint256 minSpendThreshold,
+        uint256 dailyCap,
+        uint256 monthlyCap,
+        uint256 destinationId
+    ) external nonReentrant whenNotPaused {
+        if (_userConfigs[msg.sender].enabled) revert SpendAndSaveAlreadyEnabled();
+        if (_userVaults[msg.sender] == address(0)) revert VaultNotLinked();
+        
+        // Validate configuration
+        if (isPercentage) {
+            SpendAndSaveLib.validatePercentage(value);
+        } else {
+            SpendAndSaveLib.validateFixedAmount(value);
+        }
+        
+        SpendAndSaveLib.validateCaps(dailyCap, monthlyCap);
+
+        SpendAndSaveConfig storage config = _userConfigs[msg.sender];
+        config.enabled = true;
+        config.isPercentage = isPercentage;
+        config.value = value;
+        config.minSpendThreshold = minSpendThreshold;
+        config.dailyCap = dailyCap;
+        config.monthlyCap = monthlyCap;
+        config.destinationId = destinationId;
+        config.lastResetDay = block.timestamp;
+        config.lastResetMonth = block.timestamp;
+
+        emit SpendAndSaveEnabled(
+            msg.sender,
+            isPercentage,
+            value,
+            minSpendThreshold,
+            dailyCap,
+            monthlyCap,
+            block.timestamp
+        );
+    }
+
     
 }
