@@ -267,5 +267,108 @@ contract SpendAndSaveModule is
         emit SpendAndSaveDisabled(msg.sender, block.timestamp);
     }
 
+    // ============ Automation Functions ============
+
+    /**
+     * @notice Process auto-save (called by automation service)
+     * @param user User who made a spend transaction
+     * @param originalSpendAmount Original USDC spend amount
+     * @param txHash Hash of the original spend transaction (for idempotency)
+     * 
+     * @dev Security measures:
+     * - Only automation service can call
+     * - Idempotency check prevents duplicate processing
+     * - Rate limiting prevents spam
+     * - All validations happen on-chain
+     * - Balance verified before transfer
+     */
+    function autoDepositSpendAndSave(
+        address user,
+        uint256 originalSpendAmount,
+        bytes32 txHash
+    ) external nonReentrant onlyAutomation whenNotPaused {
+        // Idempotency check
+        if (_processedTransactions[txHash]) {
+            revert DuplicateTransaction();
+        }
+        _processedTransactions[txHash] = true;
+
+        // Rate limiting
+        if (block.timestamp < _lastAutoSaveTime[user] + RATE_LIMIT_COOLDOWN) {
+            emit AutoSaveSkipped(user, originalSpendAmount, "Rate limit", block.timestamp);
+            return;
+        }
+
+        SpendAndSaveConfig storage config = _userConfigs[user];
+
+        // Check if enabled
+        if (!config.enabled) {
+            emit AutoSaveSkipped(user, originalSpendAmount, "Not enabled", block.timestamp);
+            return;
+        }
+
+        // Check minimum threshold
+        if (originalSpendAmount < config.minSpendThreshold) {
+            emit AutoSaveSkipped(user, originalSpendAmount, "Below threshold", block.timestamp);
+            return;
+        }
+
+        // Reset counters if needed
+        _resetCountersIfNeeded(config);
+
+        // Calculate save amount
+        uint256 saveAmount = SpendAndSaveLib.calculateSaveAmount(
+            originalSpendAmount,
+            config.value,
+            config.isPercentage
+        );
+
+        // Check daily cap
+        if (config.dailySaved + saveAmount > config.dailyCap) {
+            emit AutoSaveSkipped(user, originalSpendAmount, "Daily cap", block.timestamp);
+            return;
+        }
+
+        // Check monthly cap
+        if (config.monthlySaved + saveAmount > config.monthlyCap) {
+            emit AutoSaveSkipped(user, originalSpendAmount, "Monthly cap", block.timestamp);
+            return;
+        }
+
+        // Check user balance
+        uint256 userBalance = USDC.balanceOf(user);
+        if (userBalance < saveAmount) {
+            emit AutoSaveSkipped(user, originalSpendAmount, "Insufficient balance", block.timestamp);
+            return;
+        }
+
+        // Check allowance
+        uint256 allowance = USDC.allowance(user, address(this));
+        if (allowance < saveAmount) {
+            emit AutoSaveSkipped(user, originalSpendAmount, "Insufficient allowance", block.timestamp);
+            return;
+        }
+
+        // Execute transfer to vault
+        address vault = _userVaults[user];
+        USDC.safeTransferFrom(user, vault, saveAmount);
+
+        // Update state
+        config.dailySaved += saveAmount;
+        config.monthlySaved += saveAmount;
+        config.totalAutoSaved += saveAmount;
+        config.transactionCount += 1;
+        _lastAutoSaveTime[user] = block.timestamp;
+
+        emit AutoSaveTriggered(
+            user,
+            originalSpendAmount,
+            saveAmount,
+            block.timestamp,
+            config.totalAutoSaved,
+            txHash
+        );
+    }
+
     
 }
