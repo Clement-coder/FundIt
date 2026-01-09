@@ -661,5 +661,23 @@ contract SpendAndSaveModuleTest is Test {
         assertEq(totalAutoSaved, expectedSave);
     }
 
-    
+    // ============ Helper Functions ============
+
+    function _setupUser1WithSpendAndSave() internal {
+        vm.startPrank(user1);
+        
+        spendAndSave.linkVault(address(vault));
+        usdc.approve(address(spendAndSave), type(uint256).max);
+        
+        spendAndSave.enableSpendAndSave(
+            10,           // 10%
+            true,
+            MIN_THRESHOLD,
+            DAILY_CAP,
+            MONTHLY_CAP,
+            0
+        );
+        
+        vm.stopPrank();
+    }
 }
