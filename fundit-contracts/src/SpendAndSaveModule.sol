@@ -196,5 +196,46 @@ contract SpendAndSaveModule is
         );
     }
 
+    /**
+     * @notice Update configuration with validation
+     */
+    function updateSpendAndSaveConfig(
+        uint256 value,
+        bool isPercentage,
+        uint256 minSpendThreshold,
+        uint256 dailyCap,
+        uint256 monthlyCap,
+        uint256 destinationId
+    ) external nonReentrant whenNotPaused {
+        if (!_userConfigs[msg.sender].enabled) revert SpendAndSaveNotEnabled();
+
+        // Validate new configuration
+        if (isPercentage) {
+            SpendAndSaveLib.validatePercentage(value);
+        } else {
+            SpendAndSaveLib.validateFixedAmount(value);
+        }
+        
+        SpendAndSaveLib.validateCaps(dailyCap, monthlyCap);
+
+        SpendAndSaveConfig storage config = _userConfigs[msg.sender];
+        config.isPercentage = isPercentage;
+        config.value = value;
+        config.minSpendThreshold = minSpendThreshold;
+        config.dailyCap = dailyCap;
+        config.monthlyCap = monthlyCap;
+        config.destinationId = destinationId;
+
+        emit SpendAndSaveConfigUpdated(
+            msg.sender,
+            isPercentage,
+            value,
+            minSpendThreshold,
+            dailyCap,
+            monthlyCap,
+            block.timestamp
+        );
+    }
+
     
 }
