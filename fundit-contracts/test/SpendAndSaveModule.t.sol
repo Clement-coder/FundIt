@@ -106,5 +106,137 @@ contract SpendAndSaveModuleTest is Test {
         vault = new MockSavingsVault(user1);
     }
 
-    
+    // ============ Configuration Tests ============
+
+    function test_EnableSpendAndSave_Success() public {
+        vm.startPrank(user1);
+        
+        // Link vault
+        spendAndSave.linkVault(address(vault));
+        
+        // Approve USDC
+        usdc.approve(address(spendAndSave), type(uint256).max);
+        
+        // Enable Spend & Save
+        vm.expectEmit(true, true, true, true);
+        emit SpendAndSaveEnabled(user1, true, 10, MIN_THRESHOLD, DAILY_CAP, MONTHLY_CAP, block.timestamp);
+        
+        spendAndSave.enableSpendAndSave(
+            10,           // 10%
+            true,         // isPercentage
+            MIN_THRESHOLD,
+            DAILY_CAP,
+            MONTHLY_CAP,
+            0             // flexible savings
+        );
+        
+        // Verify configuration
+        ISpendAndSaveModule.SpendAndSaveConfig memory config = spendAndSave.getUserConfig(user1);
+        assertTrue(config.enabled);
+        assertTrue(config.isPercentage);
+        assertEq(config.value, 10);
+        assertEq(config.minSpendThreshold, MIN_THRESHOLD);
+        assertEq(config.dailyCap, DAILY_CAP);
+        assertEq(config.monthlyCap, MONTHLY_CAP);
+        
+        vm.stopPrank();
+    }
+
+    function test_EnableSpendAndSave_RevertWhenAlreadyEnabled() public {
+        vm.startPrank(user1);
+        
+        spendAndSave.linkVault(address(vault));
+        usdc.approve(address(spendAndSave), type(uint256).max);
+        
+        spendAndSave.enableSpendAndSave(10, true, MIN_THRESHOLD, DAILY_CAP, MONTHLY_CAP, 0);
+        
+        // Try to enable again
+        vm.expectRevert(SpendAndSaveModule.SpendAndSaveAlreadyEnabled.selector);
+        spendAndSave.enableSpendAndSave(10, true, MIN_THRESHOLD, DAILY_CAP, MONTHLY_CAP, 0);
+        
+        vm.stopPrank();
+    }
+
+    function test_EnableSpendAndSave_RevertWithoutVault() public {
+        vm.startPrank(user1);
+        
+        vm.expectRevert(SpendAndSaveModule.VaultNotLinked.selector);
+        spendAndSave.enableSpendAndSave(10, true, MIN_THRESHOLD, DAILY_CAP, MONTHLY_CAP, 0);
+        
+        vm.stopPrank();
+    }
+
+    function test_EnableSpendAndSave_RevertWithInvalidPercentage() public {
+        vm.startPrank(user1);
+        spendAndSave.linkVault(address(vault));
+        
+        // Test 0%
+        vm.expectRevert(SpendAndSaveLib.InvalidPercentage.selector);
+        spendAndSave.enableSpendAndSave(0, true, MIN_THRESHOLD, DAILY_CAP, MONTHLY_CAP, 0);
+        
+        // Test 51%
+        vm.expectRevert(SpendAndSaveLib.InvalidPercentage.selector);
+        spendAndSave.enableSpendAndSave(51, true, MIN_THRESHOLD, DAILY_CAP, MONTHLY_CAP, 0);
+        
+        vm.stopPrank();
+    }
+
+    function test_EnableSpendAndSave_RevertWithInvalidCaps() public {
+        vm.startPrank(user1);
+        spendAndSave.linkVault(address(vault));
+        
+        // Monthly cap less than daily cap
+        vm.expectRevert(SpendAndSaveLib.InvalidConfiguration.selector);
+        spendAndSave.enableSpendAndSave(10, true, MIN_THRESHOLD, 100 * 10**6, 50 * 10**6, 0);
+        
+        vm.stopPrank();
+    }
+
+    function test_UpdateSpendAndSaveConfig_Success() public {
+        _setupUser1WithSpendAndSave();
+        
+        vm.prank(user1);
+        spendAndSave.updateSpendAndSaveConfig(
+            20,           // 20%
+            true,
+            MIN_THRESHOLD * 2,
+            DAILY_CAP * 2,
+            MONTHLY_CAP * 2,
+            0
+        );
+        
+        ISpendAndSaveModule.SpendAndSaveConfig memory config = spendAndSave.getUserConfig(user1);
+        assertEq(config.value, 20);
+        assertEq(config.minSpendThreshold, MIN_THRESHOLD * 2);
+    }
+
+    function test_PauseAndResume_Success() public {
+        _setupUser1WithSpendAndSave();
+        
+        vm.startPrank(user1);
+        
+        // Pause
+        spendAndSave.pauseSpendAndSave();
+        assertFalse(spendAndSave.isSpendAndSaveEnabled(user1));
+        
+        // Resume
+        spendAndSave.resumeSpendAndSave();
+        assertTrue(spendAndSave.isSpendAndSaveEnabled(user1));
+        
+        vm.stopPrank();
+    }
+
+    function test_DisableSpendAndSave_Success() public {
+        _setupUser1WithSpendAndSave();
+        
+        vm.prank(user1);
+        spendAndSave.disableSpendAndSave();
+        
+        assertFalse(spendAndSave.isSpendAndSaveEnabled(user1));
+        
+        ISpendAndSaveModule.SpendAndSaveConfig memory config = spendAndSave.getUserConfig(user1);
+        assertEq(config.value, 0);
+    }
+
+   
 }
