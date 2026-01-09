@@ -404,5 +404,87 @@ contract SpendAndSaveModuleTest is Test {
         spendAndSave.autoDepositSpendAndSave(user1, spendAmount, txHash);
     }
 
-    
+    // ============ Cap Enforcement Tests ============
+
+    function test_DailyCap_EnforcedCorrectly() public {
+        _setupUser1WithSpendAndSave();
+        
+        // Make multiple auto-saves up to daily cap (50 USDC)
+        // 10% of 100 = 10 USDC per save
+        // 5 transactions = 50 USDC (hits cap)
+        
+        for (uint i = 0; i < 5; i++) {
+            bytes32 txHash = keccak256(abi.encodePacked("tx", i));
+            vm.prank(automationService);
+            spendAndSave.autoDepositSpendAndSave(user1, 100 * 10**6, txHash);
+            vm.warp(block.timestamp + 61); // Skip rate limit
+        }
+        
+        (,, uint256 dailySaved,) = spendAndSave.getUserStats(user1);
+        assertEq(dailySaved, DAILY_CAP);
+        
+        // Next transaction should be skipped
+        bytes32 txHash = keccak256("tx_over_cap");
+        vm.expectEmit(true, true, true, true);
+        emit AutoSaveSkipped(user1, 100 * 10**6, "Daily cap", block.timestamp);
+        
+        vm.prank(automationService);
+        spendAndSave.autoDepositSpendAndSave(user1, 100 * 10**6, txHash);
+    }
+
+    function test_DailyCap_ResetsAfter24Hours() public {
+        _setupUser1WithSpendAndSave();
+        
+        // Hit daily cap
+        for (uint i = 0; i < 5; i++) {
+            bytes32 txHash = keccak256(abi.encodePacked("tx", i));
+            vm.prank(automationService);
+            spendAndSave.autoDepositSpendAndSave(user1, 100 * 10**6, txHash);
+            vm.warp(block.timestamp + 61);
+        }
+        
+        // Fast forward 24 hours
+        vm.warp(block.timestamp + 86400);
+        
+        // Should work again
+        bytes32 txHash = keccak256("tx_after_reset");
+        vm.prank(automationService);
+        spendAndSave.autoDepositSpendAndSave(user1, 100 * 10**6, txHash);
+        
+        uint256 remaining = spendAndSave.getRemainingDailyCap(user1);
+        assertEq(remaining, DAILY_CAP - 10 * 10**6);
+    }
+
+    function test_MonthlyCap_EnforcedCorrectly() public {
+        _setupUser1WithSpendAndSave();
+        
+        // Make 50 auto-saves = 500 USDC (monthly cap)
+        for (uint i = 0; i < 50; i++) {
+            bytes32 txHash = keccak256(abi.encodePacked("tx", i));
+            
+            // Reset daily cap every 5 transactions
+            if (i % 5 == 0 && i > 0) {
+                vm.warp(block.timestamp + 86400);
+            }
+            
+            vm.prank(automationService);
+            spendAndSave.autoDepositSpendAndSave(user1, 100 * 10**6, txHash);
+            vm.warp(block.timestamp + 61);
+        }
+        
+        (,,, uint256 monthlySaved) = spendAndSave.getUserStats(user1);
+        assertEq(monthlySaved, MONTHLY_CAP);
+        
+        // Next should be skipped
+        vm.warp(block.timestamp + 86400); // Reset daily
+        bytes32 txHash = keccak256("tx_monthly_over");
+        
+        vm.expectEmit(true, true, true, true);
+        emit AutoSaveSkipped(user1, 100 * 10**6, "Monthly cap", block.timestamp);
+        
+        vm.prank(automationService);
+        spendAndSave.autoDepositSpendAndSave(user1, 100 * 10**6, txHash);
+    }
+
+    /
 }
