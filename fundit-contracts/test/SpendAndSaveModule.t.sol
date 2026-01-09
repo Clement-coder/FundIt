@@ -87,6 +87,9 @@ contract SpendAndSaveModuleTest is Test {
     );
 
     function setUp() public {
+        // Start at a non-zero timestamp to avoid rate limit issues
+        vm.warp(100);
+        
         owner = address(this);
         user1 = makeAddr("user1");
         user2 = makeAddr("user2");
@@ -353,6 +356,7 @@ contract SpendAndSaveModuleTest is Test {
         vm.startPrank(user1);
         spendAndSave.linkVault(address(vault));
         usdc.approve(address(spendAndSave), type(uint256).max);
+        // Note: NOT enabling Spend & Save
         vm.stopPrank();
         
         uint256 spendAmount = 100 * 10**6;
@@ -506,6 +510,7 @@ contract SpendAndSaveModuleTest is Test {
         _setupUser1WithSpendAndSave();
         
         uint256 spendAmount = 100 * 10**6;
+        uint256 startTime = block.timestamp;
         
         // First call succeeds
         bytes32 txHash1 = keccak256("tx_rate1");
@@ -514,7 +519,7 @@ contract SpendAndSaveModuleTest is Test {
         
         // Second call within 60 seconds is skipped
         bytes32 txHash2 = keccak256("tx_rate2");
-        vm.warp(block.timestamp + 30); // Only 30 seconds
+        vm.warp(startTime + 30); // Only 30 seconds from start
         
         vm.expectEmit(true, true, true, true);
         emit AutoSaveSkipped(user1, spendAmount, "Rate limit", block.timestamp);
@@ -524,7 +529,7 @@ contract SpendAndSaveModuleTest is Test {
         
         // Third call after 60 seconds succeeds
         bytes32 txHash3 = keccak256("tx_rate3");
-        vm.warp(block.timestamp + 31); // Total 61 seconds from first
+        vm.warp(startTime + RATE_LIMIT + 1); // 61 seconds from first transaction
         
         vm.expectEmit(true, true, true, true);
         emit AutoSaveTriggered(user1, spendAmount, 10 * 10**6, block.timestamp, 20 * 10**6, txHash3);
