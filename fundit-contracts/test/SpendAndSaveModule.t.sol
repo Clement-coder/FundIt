@@ -372,14 +372,14 @@ contract SpendAndSaveModuleTest is Test {
     function test_AutoDepositSpendAndSave_SkipWhenInsufficientBalance() public {
         _setupUser1WithSpendAndSave();
         
-        // First transaction to set rate limit
+        // First transaction to set rate limit (this will save 10 USDC)
         bytes32 txHashFirst = keccak256("tx_rate_first");
         vm.prank(automationService);
         spendAndSave.autoDepositSpendAndSave(user1, 100 * 10**6, txHashFirst);
         
-        // Transfer away most of user's balance
+        // Transfer away most of user's balance (keep enough for what was already saved)
         vm.prank(user1);
-        usdc.transfer(user2, INITIAL_BALANCE - 1 * 10**6);
+        usdc.transfer(user2, INITIAL_BALANCE - 20 * 10**6); // Keep 20 USDC (10 already saved, 10 remaining)
         
         // Wait for rate limit
         vm.warp(block.timestamp + RATE_LIMIT + 1);
@@ -665,7 +665,9 @@ contract SpendAndSaveModuleTest is Test {
     }
 
     function testFuzz_AutoSave_VariousSpendAmounts(uint96 spendAmount) public {
-        vm.assume(spendAmount >= MIN_THRESHOLD && spendAmount <= 1000 * 10**6);
+        // Constrain to amounts that won't exceed daily cap (50 USDC)
+        // 10% of spend must be <= 50 USDC, so spend must be <= 500 USDC
+        vm.assume(spendAmount >= MIN_THRESHOLD && spendAmount <= 500 * 10**6);
         
         _setupUser1WithSpendAndSave();
         
