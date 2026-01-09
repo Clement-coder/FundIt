@@ -120,5 +120,17 @@ contract SpendAndSaveModule is
      * @param vault Address of user's SavingsVault
      * @dev Validates vault ownership before linking
      */
+    function linkVault(address vault) external nonReentrant {
+        if (vault == address(0)) revert ZeroAddress();
+        
+        // Verify vault owner is msg.sender
+        if (ISavingsVault(vault).owner() != msg.sender) {
+            revert InvalidVaultOwner();
+        }
+        
+        _userVaults[msg.sender] = vault;
+        emit VaultLinked(msg.sender, vault, block.timestamp);
+    }
+
     
 }
