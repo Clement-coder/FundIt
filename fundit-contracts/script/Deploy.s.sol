@@ -112,3 +112,58 @@ contract DeploySpendAndSave is Script {
     }
 }
 
+/**
+ * @title DeployWithMocks
+ * @notice Deployment script for local testing with mock contracts
+ * 
+ * Usage:
+ * forge script script/Deploy.s.sol:DeployWithMocks --rpc-url localhost --broadcast
+ */
+contract DeployWithMocks is Script {
+    
+    MockUSDC public usdc;
+    SpendAndSaveModule public spendAndSave;
+    MockSavingsVault public vault;
+    
+    function run() external {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(deployerPrivateKey);
+        
+        console.log("Deploying mock contracts for local testing");
+        console.log("Deployer:", deployer);
+        
+        vm.startBroadcast(deployerPrivateKey);
+        
+        // Deploy Mock USDC
+        console.log("\n=== Deploying Mock USDC ===");
+        usdc = new MockUSDC();
+        console.log("Mock USDC deployed at:", address(usdc));
+        
+        // Deploy SpendAndSaveModule
+        console.log("\n=== Deploying SpendAndSaveModule ===");
+        spendAndSave = new SpendAndSaveModule(address(usdc));
+        console.log("SpendAndSaveModule deployed at:", address(spendAndSave));
+        
+        // Grant automation role to deployer (for testing)
+        spendAndSave.grantAutomationRole(deployer);
+        console.log("Automation role granted to deployer");
+        
+        // Deploy Mock Vault for deployer
+        console.log("\n=== Deploying Mock Vault ===");
+        vault = new MockSavingsVault(deployer);
+        console.log("Mock Vault deployed at:", address(vault));
+        
+        // Setup test account
+        usdc.mint(deployer, 10_000 * 10**6);
+        console.log("Minted 10,000 USDC to deployer");
+        
+        vm.stopBroadcast();
+        
+        console.log("\n=== Local Deployment Complete ===");
+        console.log("Mock USDC:", address(usdc));
+        console.log("SpendAndSaveModule:", address(spendAndSave));
+        console.log("Mock Vault:", address(vault));
+        console.log("\nYou can now interact with the contracts locally");
+    }
+}
+
