@@ -24,3 +24,18 @@ contract MockUSDC is ERC20 {
     }
 }
 
+/**
+ * @title MockSavingsVault
+ * @notice Mock vault for testing
+ */
+contract MockSavingsVault {
+    address public owner;
+    
+    constructor(address _owner) {
+        owner = _owner;
+    }
+
+    function depositFlexible(uint256) external pure {}
+    function depositTarget(uint256, uint256) external pure {}
+}
+
