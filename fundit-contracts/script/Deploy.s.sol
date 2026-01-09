@@ -86,4 +86,29 @@ contract DeploySpendAndSave is Script {
         console.log("4. Test with a small deposit first");
     }
     
-    
+    function _saveDeploymentInfo(
+        uint256 chainId,
+        address spendAndSaveAddress,
+        address usdcAddress,
+        address automationService
+    ) internal {
+        string memory networkName = chainId == 8453 ? "base" : "base-sepolia";
+        string memory json = string.concat(
+            '{\n',
+            '  "network": "', networkName, '",\n',
+            '  "chainId": ', vm.toString(chainId), ',\n',
+            '  "timestamp": ', vm.toString(block.timestamp), ',\n',
+            '  "contracts": {\n',
+            '    "SpendAndSaveModule": "', vm.toString(spendAndSaveAddress), '",\n',
+            '    "USDC": "', vm.toString(usdcAddress), '"\n',
+            '  },\n',
+            '  "automationService": "', vm.toString(automationService), '"\n',
+            '}'
+        );
+        
+        string memory filename = string.concat("deployments/", networkName, "-latest.json");
+        vm.writeFile(filename, json);
+        console.log("\nDeployment info saved to:", filename);
+    }
+}
+
