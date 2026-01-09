@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/access/AccessControl.sol";
+
+/**
+ * @title AutomationGuard
+ * @notice Access control for automation services
+ * @dev Uses OpenZeppelin's AccessControl for role-based permissions
+ */
+abstract contract AutomationGuard is AccessControl {
+    bytes32 public constant AUTOMATION_ROLE = keccak256("AUTOMATION_ROLE");
+
+    error UnauthorizedAutomation();
+
+    event AutomationServiceGranted(address indexed service);
+    event AutomationServiceRevoked(address indexed service);
+
+    constructor() {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
+
+    /**
+     * @notice Modifier to restrict functions to automation services
+     */
+    modifier onlyAutomation() {
+        if (!hasRole(AUTOMATION_ROLE, msg.sender)) {
+            revert UnauthorizedAutomation();
+        }
+        _;
+    }
+
+    
+}
