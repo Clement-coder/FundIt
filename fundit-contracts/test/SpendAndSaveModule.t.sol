@@ -597,5 +597,29 @@ contract SpendAndSaveModuleTest is Test {
         assertEq(totalAutoSaved, 10 * 10**6);
     }
 
+    // ============ Access Control Tests ============
+
+    function test_GrantAutomationRole_OnlyOwner() public {
+        address newService = makeAddr("newService");
+        
+        spendAndSave.grantAutomationRole(newService);
+        
+        assertTrue(spendAndSave.hasRole(spendAndSave.AUTOMATION_ROLE(), newService));
+    }
+
+    function test_GrantAutomationRole_RevertWhenNotOwner() public {
+        address newService = makeAddr("newService");
+        
+        vm.prank(user1);
+        vm.expectRevert();
+        spendAndSave.grantAutomationRole(newService);
+    }
+
+    function test_RevokeAutomationRole_Success() public {
+        spendAndSave.revokeAutomationRole(automationService);
+        
+        assertFalse(spendAndSave.hasRole(spendAndSave.AUTOMATION_ROLE(), automationService));
+    }
+
     
 }
