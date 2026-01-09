@@ -246,5 +246,26 @@ contract SpendAndSaveModule is
         emit SpendAndSavePaused(msg.sender, block.timestamp);
     }
 
+    /**
+     * @notice Resume Spend & Save
+     */
+    function resumeSpendAndSave() external nonReentrant whenNotPaused {
+        SpendAndSaveConfig storage config = _userConfigs[msg.sender];
+        if (config.value == 0) revert SpendAndSaveLib.InvalidConfiguration();
+        if (config.enabled) revert SpendAndSaveAlreadyEnabled();
+        
+        config.enabled = true;
+        emit SpendAndSaveResumed(msg.sender, block.timestamp);
+    }
+
+    /**
+     * @notice Disable completely and reset configuration
+     */
+    function disableSpendAndSave() external nonReentrant {
+        if (!_userConfigs[msg.sender].enabled) revert SpendAndSaveNotEnabled();
+        delete _userConfigs[msg.sender];
+        emit SpendAndSaveDisabled(msg.sender, block.timestamp);
+    }
+
     
 }
