@@ -237,5 +237,14 @@ contract SpendAndSaveModule is
         );
     }
 
+    /**
+     * @notice Pause Spend & Save (keeps config)
+     */
+    function pauseSpendAndSave() external nonReentrant {
+        if (!_userConfigs[msg.sender].enabled) revert SpendAndSaveNotEnabled();
+        _userConfigs[msg.sender].enabled = false;
+        emit SpendAndSavePaused(msg.sender, block.timestamp);
+    }
+
     
 }
