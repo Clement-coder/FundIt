@@ -30,5 +30,19 @@ abstract contract AutomationGuard is AccessControl {
         _;
     }
 
-    
+    /**
+     * @notice Grant automation role to an address
+     */
+    function grantAutomationRole(address service) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _grantRole(AUTOMATION_ROLE, service);
+        emit AutomationServiceGranted(service);
+    }
+
+    /**
+     * @notice Revoke automation role from an address
+     */
+    function revokeAutomationRole(address service) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _revokeRole(AUTOMATION_ROLE, service);
+        emit AutomationServiceRevoked(service);
+    }
 }
