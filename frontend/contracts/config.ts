@@ -1,7 +1,7 @@
 import SpendAndSaveABI from "./abis/SpendAndSaveModule.abi.json";
 import { CONTRACT_ADDRESSES, CURRENT_NETWORK } from "./addresses";
 
-export const SPEND_AND_SAVE_ABI = SpendAndSaveABI as const;
+export const SPEND_AND_SAVE_ABI = SpendAndSaveABI;
 
 export const CONTRACTS = {
   spendAndSave: {
