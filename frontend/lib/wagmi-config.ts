@@ -10,7 +10,7 @@ export const config = createConfig({
     injected(),
     coinbaseWallet({
       appName: "FUNDit",
-      preference: "smartWalletOnly", // Coinbase Smart Wallet
+      preference: "smartWalletOnly", 
     }),
     walletConnect({
       projectId: projectId,
